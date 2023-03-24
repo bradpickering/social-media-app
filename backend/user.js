@@ -21,7 +21,7 @@ app.post('/users/new_user', async (req, res) => {
     if (userExists) {
         res.status(400).json({error: "Username is taken"})
     } else {
-        usersDb.insertOne({'username': username, 'password': password})
+        usersDb.insertOne({'username': username, 'password': password, 'posts': []})
         res.sendStatus(200)
     }
 })
