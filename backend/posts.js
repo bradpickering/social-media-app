@@ -29,13 +29,11 @@ app.put('/posts/new_post', async (req, res) => {
     // create a post
     const {username, postId, postTitle, postContent} = req.body
 
-    const currentDate = getTimestamp()
-
     const newPost = {
         'postId': postId,
         'postTitle': postTitle,
         'postContent': postContent,
-        'timestamp': currentDate,
+        'timestamp': getTimestamp(),
         'likes': 0,
         'comments': []
     }
@@ -64,24 +62,28 @@ app.put('/posts/like_post', async (req, res) => {
         }
     })
 
-    res.sendStatus(200)
+    if (liked.matchedCount == 0 || liked.modifiedCount == 0) {
+        res.status(400).json({error: "No post found"})
+    } else {
+        res.sendStatus(200)
+    }
 })
 
-app.put('/posts/like_post', async (req, res) => {
-    // like a post
+app.put('/posts/new_comment', async (req, res) => {
+    // comment on a post
     const {postAuthor, postId, commentAuthor, commentId, commentContent} = req.body
 
-    // timestamp
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const minute = String(now.getMinutes()).padStart(2, '0');
-    const currentDate = `${year}-${month}-${day}-${minute}`;
+    const newComment = {
+        "commentId": commentId,
+        "author": commentAuthor,
+        "commentContent": commentContent,
+        "likes": 0,
+        "timestamp": getTimestamp()
+    }
 
-    const liked = await usersDb.updateOne({
+    const comment = await usersDb.updateOne({
         // query
-        'username': author, 
+        'username': postAuthor, 
         'posts': {
             '$elemMatch': {
                 'postId': postId
@@ -90,10 +92,48 @@ app.put('/posts/like_post', async (req, res) => {
     }, {
         // increment likes
         '$push': {
-            'posts.$.comments': 1
+            'posts.$.comments': newComment
         }
     })
 
     res.sendStatus(200)
+})
+
+
+app.put('/posts/like_comment', async (req, res) => {
+    // like a comment
+    const {postAuthor, postId, commentId} = req.body
+
+    const liked = await usersDb.updateOne({
+        // query
+        'username': postAuthor, 
+        'posts': {
+            '$elemMatch': {
+                'postId': postId,
+                'comments': {
+                    '$elemMatch': {
+                        'commentId': commentId
+                    }
+                }
+            }
+        }
+    }, {
+        // increment likes
+        '$inc': {
+            'posts.$[post].comments.$[comment].likes': 1
+        }
+    }, {
+        arrayFilters: [
+            {'post.postId': postId},
+            {'comment.commentId': commentId}
+        ]
+    })
+
+    if (liked.matchedCount == 0 || liked.modifiedCount == 0) {
+        res.status(400).json({error: "No comment found"})
+    } else {
+        res.sendStatus(200)
+    }
+
 })
 
