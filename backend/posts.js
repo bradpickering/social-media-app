@@ -20,7 +20,7 @@ const getTimestamp = () => {
     const day = String(now.getDate()).padStart(2, '0');
     const minute = String(now.getMinutes()).padStart(2, '0');
     const currentDate = `${year}-${month}-${day}-${minute}`;
-
+    
     return currentDate
 }
 
@@ -28,7 +28,7 @@ const getTimestamp = () => {
 app.put('/posts/new_post', async (req, res) => {
     // create a post
     const {username, postId, postTitle, postContent} = req.body
-
+    
     const newPost = {
         'postId': postId,
         'postTitle': postTitle,
@@ -38,8 +38,29 @@ app.put('/posts/new_post', async (req, res) => {
         'comments': []
     }
     const post = await usersDb.updateOne({'username': username}, {'$push': {'posts': newPost}})
-
+    
     res.sendStatus(200)
+})
+
+
+app.delete('/posts/delete_post', async(req, res) => {
+    const {username, password, postId} = req.body
+
+    const userExists = await usersDb.findOne({"username": username})
+    if (userExists && userExists.password === password) {
+        // compare passwords
+        await usersDb.updateOne({"username": username},{ 
+            '$pull': { 
+                'posts': { 
+                    'postId': postId
+                 } 
+                }
+        })
+        res.sendStatus(200)
+    }
+    else {
+        res.status(400).json({error: "User does not exist or password is incorrect"})
+    }
 })
 
 
@@ -100,6 +121,8 @@ app.put('/posts/new_comment', async (req, res) => {
 })
 
 
+
+
 app.put('/posts/like_comment', async (req, res) => {
     // like a comment
     const {postAuthor, postId, commentId} = req.body
@@ -134,6 +157,33 @@ app.put('/posts/like_comment', async (req, res) => {
     } else {
         res.sendStatus(200)
     }
-
 })
 
+app.put('/posts/delete_comment', async(req, res) => {
+    const {postAuthor, postId, commentId, commentAuthor} = req.body
+
+    const deletedComment = await usersDb.updateOne({
+        // query
+        'username': postAuthor, 
+        'posts': {
+            '$elemMatch': {
+                'postId': postId,
+                'comments': {
+                    '$elemMatch': {
+                        'commentId': commentId
+                    }
+                }
+            }
+        }
+    }, {
+        // increment likes
+        '$pull': {
+            'posts.$[].comments': commentId
+        }, 
+
+    })
+
+    console.log(deletedComment)
+
+    res.sendStatus(200)
+})
