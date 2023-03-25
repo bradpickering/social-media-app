@@ -1,16 +1,9 @@
 services:
   database:
-    build:
-      context: ./mongodb
+    build: ./mongo
     container_name: mongo_database
     ports:
       - "27017:27017"
-
-  # backend:
-  #   build:
-  #     context: ./backend
-  #   ports:
-  #     - "5000"
 
   users:
     build:

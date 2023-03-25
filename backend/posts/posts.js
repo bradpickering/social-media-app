@@ -9,7 +9,7 @@ const server = http.createServer(app);
 const usersDb = db.collection("users");
 
 server.listen(5000, () => {
-  console.log("Server is live on port 5001");
+  console.log("Server is live on port 5000");
 });
 
 const getTimestamp = () => {
