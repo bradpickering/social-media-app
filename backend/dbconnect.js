@@ -1,6 +1,6 @@
-const MongoClient = require('mongodb').MongoClient;
+const MongoClient = require("mongodb").MongoClient;
 
-const url = 'mongodb://localhost:27017/social-media';
+const url = "mongodb://mongo_database:27017/social-media";
 
 const client = new MongoClient(url, { useNewUrlParser: true });
 
@@ -8,7 +8,7 @@ client.connect((err) => {
   if (err) {
     console.log(err);
   } else {
-    console.log('MongoDB connected');
+    console.log("MongoDB connected");
   }
 });
 
