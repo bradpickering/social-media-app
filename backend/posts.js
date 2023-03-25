@@ -37,7 +37,7 @@ app.put("/posts/new_post", async (req, res) => {
   };
   const post = await usersDb.updateOne(
     { username: username },
-    { $push: { posts: newPost } }
+    { $inc: { totalPosts: 1 }, $push: { posts: newPost } }
   );
 
   res.sendStatus(200);
@@ -47,7 +47,6 @@ app.put("/posts/edit_post", async (req, res) => {
   const { username, password, postId, newContent } = req.body;
   const userExists = await usersDb.findOne({ username: username });
   if (userExists && userExists.password === password) {
-    console.log("HERE");
     const edited = await usersDb.updateOne(
       { username: username, posts: { $elemMatch: { postId: postId } } },
       {
@@ -79,6 +78,7 @@ app.delete("/posts/delete_post", async (req, res) => {
     const deleted = await usersDb.updateOne(
       { username: username },
       {
+        $inc: { totalPosts: -1 },
         $pull: {
           posts: {
             postId: postId,
@@ -101,7 +101,18 @@ app.delete("/posts/delete_post", async (req, res) => {
 
 app.put("/posts/like_post", async (req, res) => {
   // like a post
-  const { author, postId } = req.body;
+  const { author, postId, likerUsername, likerPassword } = req.body;
+
+  const likerExists = await usersDb.findOne({ username: likerUsername });
+  if (likerExists && likerExists.password === likerPassword) {
+    await usersDb.updateOne(
+      { username: likerUsername },
+      { $inc: { likesGiven: 1 } }
+    );
+  } else {
+    res.status(400).json({ error: "Liker doesnt exist or password incorrect" });
+    return;
+  }
 
   const liked = await usersDb.updateOne(
     {
@@ -116,6 +127,7 @@ app.put("/posts/like_post", async (req, res) => {
     {
       // increment likes
       $inc: {
+        likesReceived: 1,
         "posts.$.likes": 1,
       },
     }

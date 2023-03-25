@@ -25,8 +25,26 @@ const getTimestamp = () => {
 
 app.put("/comments/new_comment", async (req, res) => {
   // comment on a post
-  const { postAuthor, postId, commentAuthor, commentId, commentContent } =
-    req.body;
+  const {
+    postAuthor,
+    postId,
+    commentAuthor,
+    commentAuthorPassword,
+    commentId,
+    commentContent,
+  } = req.body;
+  const commenterExists = await usersDb.findOne({ username: commentAuthor });
+  if (commenterExists && commenterExists.password === commentAuthorPassword) {
+    await usersDb.updateOne(
+      { username: commentAuthor },
+      { $inc: { totalComments: 1 } }
+    );
+  } else {
+    res
+      .status(400)
+      .json({ error: "Commentor doesnt exist or password incorrect" });
+    return;
+  }
 
   const newComment = {
     commentId: commentId,
@@ -93,7 +111,26 @@ app.put("/comments/edit_comment", async (req, res) => {
 });
 
 app.put("/comments/delete_comment", async (req, res) => {
-  const { postAuthor, postId, commentId, commentAuthor } = req.body;
+  const {
+    postAuthor,
+    postId,
+    commentId,
+    commentAuthor,
+    commentAuthorPassword,
+  } = req.body;
+
+  const commenterExists = await usersDb.findOne({ username: commentAuthor });
+  if (commenterExists && commenterExists.password === commentAuthorPassword) {
+    await usersDb.updateOne(
+      { username: commentAuthor },
+      { $inc: { totalComments: -1 } }
+    );
+  } else {
+    res
+      .status(400)
+      .json({ error: "Commentor doesnt exist or password incorrect" });
+    return;
+  }
 
   const deletedComment = await usersDb.updateOne(
     {
@@ -127,8 +164,30 @@ app.put("/comments/delete_comment", async (req, res) => {
 
 app.put("/comments/like_comment", async (req, res) => {
   // like a comment
-  const { postAuthor, postId, commentId } = req.body;
+  const {
+    postAuthor,
+    postId,
+    commentId,
+    commentAuthor,
+    likerUsername,
+    likerPassword,
+  } = req.body;
 
+  const likerExists = await usersDb.findOne({ username: likerUsername });
+  if (likerExists && likerExists.password === likerPassword) {
+    await usersDb.updateOne(
+      { username: likerUsername },
+      { $inc: { likesGiven: 1 } }
+    );
+
+    await usersDb.updateOne(
+      { username: commentAuthor },
+      { $inc: { likesReceived: 1 } }
+    );
+  } else {
+    res.status(400).json({ error: "Liker doesnt exist or password incorrect" });
+    return;
+  }
   const liked = await usersDb.updateOne(
     {
       // query
