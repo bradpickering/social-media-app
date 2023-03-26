@@ -93,10 +93,9 @@ app.get("/posts/posts", async (req, res) => {
   });
 });
 
-app.put("/posts/new_post", async (req, res) => {
+app.post("/posts/new_post", async (req, res) => {
   // create a post
   const { username, postId, postTitle, postContent } = req.body;
-
   const newPost = {
     postId: postId,
     postTitle: postTitle,
