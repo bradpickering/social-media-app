@@ -5,6 +5,13 @@ services:
     ports:
       - "27017:27017"
 
+  redis:
+    build:
+      context: ./redis
+    container_name: redis_client
+    ports:
+      - "6379:6379"
+
   users:
     build:
       context: ./backend/users
@@ -16,6 +23,8 @@ services:
       context: ./backend/posts
     ports:
       - "5000"
+    depends_on:
+      - "redis"
 
   comments:
     build:

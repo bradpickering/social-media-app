@@ -1,3 +1,4 @@
+const redisClient = require("redis");
 const path = require("path");
 const db = require(path.resolve(__dirname, "./dbconnect")).db();
 const express = require("express");
@@ -6,6 +7,25 @@ app.use(express.json());
 const http = require("http");
 const server = http.createServer(app);
 
+// redis init
+let redis = null;
+const connectToRedis = async () => {
+  redis = redisClient.createClient({
+    legacyMode: true,
+    socket: {
+      host: "redis_client",
+      port: 6379,
+    },
+  });
+  await redis.connect();
+
+  return redis;
+};
+
+connectToRedis();
+
+console.log(redis);
+
 const usersDb = db.collection("users");
 
 server.listen(5000, () => {
@@ -13,30 +33,65 @@ server.listen(5000, () => {
 });
 
 const getTimestamp = () => {
-  const now = new Date()
-  return now.toISOString()
+  const now = new Date();
+  return now.toISOString();
 };
 
+app.get("/posts/clear", async (req, res) => {
+  redis.flushdb(function (err, succeeded) {
+    console.log(succeeded);
+  });
+});
 
-app.get("/posts/posts", async(req, res) => {
+app.get("/posts/posts", async (req, res) => {
   // gets all posts and returns them sorted by date
 
-  const allPosts = await usersDb.find({posts: {$ne: []}}, {projection: {password: 0}}).toArray()
-  const allPostsFiltered = []
-  for (let i =0; i <allPosts.length; i++){
-    console.log(allPosts[i].posts.length)
-    for (let j = 0; j < allPosts[i].posts.length; j++) {
-      const post = allPosts[i].posts[j]
-      post.author = allPosts[i].username
-      allPostsFiltered.push(post)
+  // check if redis cache has the up to date posts
+  redis.lrange("posts", 0, -1, async (err, posts) => {
+    if (err) {
+      console.log("redis err", err);
+      res.sendStatus(400);
+      return;
     }
-  }
+    if (posts.length > 0) {
+      console.log("IN REDIS", posts);
+      const parsedPosts = posts.map((post) => JSON.parse(post));
+      res.status(200).json({ posts: parsedPosts });
+      return;
+    } else {
+      console.log("NOT IN REDIS");
+      const allPosts = await usersDb
+        .find({ posts: { $ne: [] } }, { projection: { password: 0 } })
+        .toArray();
+      const allPostsFiltered = [];
+      for (let i = 0; i < allPosts.length; i++) {
+        console.log(allPosts[i].posts.length);
+        for (let j = 0; j < allPosts[i].posts.length; j++) {
+          const post = allPosts[i].posts[j];
+          post.author = allPosts[i].username;
+          allPostsFiltered.push(post);
+        }
+      }
 
-  const allPostsFilteredSorted = allPostsFiltered.sort((post1, post2) => {
-    return new Date(post2.timestamp) - new Date(post1.timestamp);
-  })
-  res.status(200).json({"posts": allPostsFiltered})
-})
+      if (allPosts.length > 0) {
+        // only store in redis if there are actual posts
+        const allPostsFilteredSorted = allPostsFiltered.sort((post1, post2) => {
+          return new Date(post2.timestamp) - new Date(post1.timestamp);
+        });
+
+        allPostsFilteredSorted.forEach(async (post) => {
+          console.log(post);
+          await redis.rpush("posts", JSON.stringify(post));
+        });
+        await redis.expire("posts", 60);
+        res.status(200).json({ posts: allPostsFiltered });
+      } else {
+        // return an empty list and dont store in redis
+        res.status(200).json({ posts: [] });
+      }
+    }
+  });
+});
 
 app.put("/posts/new_post", async (req, res) => {
   // create a post
