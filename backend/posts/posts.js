@@ -1,4 +1,3 @@
-const redisClient = require("redis");
 const path = require("path");
 const db = require(path.resolve(__dirname, "./dbconnect")).db();
 const express = require("express");
@@ -37,11 +36,6 @@ const getTimestamp = () => {
   return now.toISOString();
 };
 
-app.get("/posts/clear", async (req, res) => {
-  redis.flushdb(function (err, succeeded) {
-    console.log(succeeded);
-  });
-});
 
 app.get("/posts/posts", async (req, res) => {
   // gets all posts and returns them sorted by date
