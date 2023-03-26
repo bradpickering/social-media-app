@@ -13,15 +13,30 @@ server.listen(5000, () => {
 });
 
 const getTimestamp = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  const minute = String(now.getMinutes()).padStart(2, "0");
-  const currentDate = `${year}-${month}-${day}-${minute}`;
-
-  return currentDate;
+  const now = new Date()
+  return now.toISOString()
 };
+
+
+app.get("/posts/posts", async(req, res) => {
+  // gets all posts and returns them sorted by date
+
+  const allPosts = await usersDb.find({posts: {$ne: []}}, {projection: {password: 0}}).toArray()
+  const allPostsFiltered = []
+  for (let i =0; i <allPosts.length; i++){
+    console.log(allPosts[i].posts.length)
+    for (let j = 0; j < allPosts[i].posts.length; j++) {
+      const post = allPosts[i].posts[j]
+      post.author = allPosts[i].username
+      allPostsFiltered.push(post)
+    }
+  }
+
+  const allPostsFilteredSorted = allPostsFiltered.sort((post1, post2) => {
+    return new Date(post2.timestamp) - new Date(post1.timestamp);
+  })
+  res.status(200).json({"posts": allPostsFiltered})
+})
 
 app.put("/posts/new_post", async (req, res) => {
   // create a post

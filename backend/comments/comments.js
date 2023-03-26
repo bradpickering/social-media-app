@@ -13,14 +13,8 @@ server.listen(5000, () => {
 });
 
 const getTimestamp = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  const minute = String(now.getMinutes()).padStart(2, "0");
-  const currentDate = `${year}-${month}-${day}-${minute}`;
-
-  return currentDate;
+  const now = new Date()
+  return now.toISOString()
 };
 
 app.put("/comments/new_comment", async (req, res) => {
