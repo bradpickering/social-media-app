@@ -32,6 +32,12 @@ services:
     ports:
       - "5000"
 
+  messaging:
+    build:
+      context: ./backend/messaging
+    ports:
+      - "5000"
+
   nginx:
     image: nginx:latest
     volumes:
@@ -40,5 +46,6 @@ services:
       - users
       - posts
       - comments
+      - messaging
     ports:
       - "80:80"

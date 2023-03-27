@@ -3,69 +3,56 @@ const express = require("express");
 const app = express();
 app.use(express.json());
 const http = require("http");
-// const redisClient = require("./redisconnect");
-const redis = require("redis");
 const server = http.createServer(app);
+const redisClient = require('redis')
 
-// const redisClient = redis.createClient();
 
-const subscriber = redis.createClient({
-  socket: {
-    host: "redis_client",
-    port: 6379,
-  },
-});
-
-const publisher = redis.createClient({
-  socket: {
-    host: "redis_client",
-    port: 6379,
-  },
-});
-
-server.listen(5000, async () => {
-  await publisher.connect();
-  await subscriber.connect();
-  console.log("Server is live on port 5001");
-});
-
-app.get("/message", async (req, res) => {
-  console.log("HERE");
-  // keep the connection alive
-
-  res.writeHead(200, {
-    "Content-Type": "text/event-stream",
-    "Transfer-Encoding": "chunked",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
+// redis init
+let redis = null;
+const connectToRedis = async () => {
+  redis = redisClient.createClient({
+    legacyMode: true,
+    socket: {
+      host: "redis_client",
+      port: 6379,
+    },
   });
-  await subscriber.subscribe("chat", (message) => {
-    res.write("hi\n");
-    // res.end();
-    // res.flush();
-    console.log(message);
-  });
+  await redis.connect();
 
-  //   redisSub.on("message", (channel, message) => {
-  //     console.log(channel, "CHANNEL");
-  //     res.write(`data: ${message}\n\n`);
-  //     res.flush();
-  //   });
+  return redis;
+};
 
-  req.on("close", () => {
-    subscriber.unsubscribe("chat");
-    res.end();
-  });
+connectToRedis();
+
+server.listen(5000, async() => {
+  console.log("Server is live on port 5000");
 });
 
-app.post("/message/send", async (req, res) => {
-  const { message, username } = req.body;
 
-  const message2 = {
-    id: "123",
-    message: "abcdef",
-  };
-  await publisher.publish("chat", message, username);
+const getTimestamp = () => {
+  const now = new Date();
+  return now.toISOString();
+};
 
-  res.send("message sent");
-});
+
+app.post("/messages/get", async(req, res) => {
+  const {sender, recipient} = req.body
+  redis.lrange(`messages.${sender}.to.${recipient}`, 0, -1, async(err, messages) => {
+    if (err) {
+      console.log("redis err", err)
+      res.sendStatus(400)
+      return
+    }
+    res.status(200).json({messages: messages})
+  })
+})
+
+
+app.post("/messages/send", async(req, res) => {
+  const {sender, recipient, message} = req.body
+  const msg = `${message} - ${getTimestamp()}`
+  console.log("message", msg, message)
+  redis.rpush(`messages.${sender}.to.${recipient}`, msg)
+  res.send(200)
+})
+
