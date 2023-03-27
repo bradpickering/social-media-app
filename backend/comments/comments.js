@@ -5,8 +5,25 @@ const app = express();
 app.use(express.json());
 const http = require("http");
 const server = http.createServer(app);
+const redisClient = require('redis')
 
 const usersDb = db.collection("users");
+let redis = null;
+const connectToRedis = async () => {
+  redis = redisClient.createClient({
+    legacyMode: true,
+    socket: {
+      host: "redis_client",
+      port: 6379,
+    },
+  });
+  await redis.connect();
+
+  return redis;
+};
+
+connectToRedis();
+
 
 server.listen(5000, () => {
   console.log("Server is live on port 5000");
@@ -29,6 +46,10 @@ app.put("/comments/new_comment", async (req, res) => {
   } = req.body;
   const commenterExists = await usersDb.findOne({ username: commentAuthor });
   if (commenterExists && commenterExists.password === commentAuthorPassword) {
+    // send notification via redis
+    const message = `${commentAuthor} commented '${commentContent}' on your post! - ${getTimestamp()}`
+    await redis.rpush(`notifications.${postAuthor}`, message)
+
     await usersDb.updateOne(
       { username: commentAuthor },
       { $inc: { totalComments: 1 } }

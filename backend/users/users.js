@@ -4,14 +4,26 @@ const express = require("express");
 const app = express();
 app.use(express.json());
 const http = require("http");
-const { report } = require("process");
 const server = http.createServer(app);
-
+const redis = require("redis");
+const { Console } = require("console");
 const usersDb = db.collection("users");
 
-server.listen(5000, () => {
-  console.log("Server is live on port 5001");
+
+const redisClient = redis.createClient({
+  legacyMode: true,
+  socket: {
+    host: "redis_client",
+    port: 6379,
+  },
 });
+
+
+server.listen(5000, async() => {
+  await redisClient.connect()
+  console.log("Server is live on port 5000");
+});
+
 
 app.post("/users/new_user", async (req, res) => {
   // create a user
@@ -21,6 +33,10 @@ app.post("/users/new_user", async (req, res) => {
   if (userExists) {
     res.status(400).json({ error: "Username is taken" });
   } else {
+    // when a user signs up, subscribe them to their own notification channel
+    // await subscriber.subscribe(`notifications.${username}`)
+    // console.log("subscribed")
+
     usersDb.insertOne({
       username: username,
       password: password,
@@ -33,6 +49,7 @@ app.post("/users/new_user", async (req, res) => {
     res.sendStatus(200);
   }
 });
+
 
 app.delete("/users/delete_user", async (req, res) => {
   // delete a user
@@ -49,6 +66,28 @@ app.delete("/users/delete_user", async (req, res) => {
       .json({ error: "User does not exist or password is incorrect" });
   }
 });
+
+
+app.get("/users/notifications/:username", async(req, res) => {
+  const { username } = req.params
+
+  redisClient.lrange(`notifications.${username}`, 0, -1, async(err, notifications) => {
+    if (err) {
+      console.log("redis err", err)
+      res.sendStatus(400)
+      return
+    }
+    if (notifications.length > 0) {
+      // clear the notifications cache for this user
+      redisClient.del(`notifications.${username}`)
+      res.status(200).json({"notifications": notifications})
+      
+    } else {
+      res.status(200).json({message: "You're already up to date!"})
+    }
+  });
+})
+
 
 app.get("/users/report/:username", async (req, res) => {
   const { username } = req.params;

@@ -5,7 +5,7 @@ const app = express();
 app.use(express.json());
 const http = require("http");
 const server = http.createServer(app);
-
+const redisClient = require('redis')
 // redis init
 let redis = null;
 const connectToRedis = async () => {
@@ -23,13 +23,12 @@ const connectToRedis = async () => {
 
 connectToRedis();
 
-console.log(redis);
-
 const usersDb = db.collection("users");
 
-server.listen(5000, () => {
+server.listen(5000, async() => {
   console.log("Server is live on port 5000");
 });
+
 
 const getTimestamp = () => {
   const now = new Date();
@@ -168,6 +167,10 @@ app.put("/posts/like_post", async (req, res) => {
 
   const likerExists = await usersDb.findOne({ username: likerUsername });
   if (likerExists && likerExists.password === likerPassword) {
+    // send notification via redis!
+    const message = `${likerUsername} liked your post! - ${getTimestamp()}`
+    await redis.rpush(`notifications.${author}`, message)
+
     await usersDb.updateOne(
       { username: likerUsername },
       { $inc: { likesGiven: 1 } }
