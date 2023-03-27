@@ -6,9 +6,7 @@ app.use(express.json());
 const http = require("http");
 const server = http.createServer(app);
 const redis = require("redis");
-const { Console } = require("console");
 const usersDb = db.collection("users");
-
 
 const redisClient = redis.createClient({
   legacyMode: true,
@@ -24,6 +22,17 @@ server.listen(5000, async() => {
   console.log("Server is live on port 5000");
 });
 
+/*
+  User Schema:
+  {
+    username: "",
+    password: "",
+    likesReceived: 0,
+    likesGiven: 0,
+    totalComments: 0,
+    posts: []
+  }
+*/
 
 app.post("/users/new_user", async (req, res) => {
   // create a user
@@ -33,10 +42,6 @@ app.post("/users/new_user", async (req, res) => {
   if (userExists) {
     res.status(400).json({ error: "Username is taken" });
   } else {
-    // when a user signs up, subscribe them to their own notification channel
-    // await subscriber.subscribe(`notifications.${username}`)
-    // console.log("subscribed")
-
     usersDb.insertOne({
       username: username,
       password: password,
