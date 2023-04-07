@@ -3,7 +3,9 @@
 
 ## How to Run
 - In root directory run ```docker-compose up --build```
-- In inputs directory run ```send_inputs.py ./inputs.txt```
+- In inputs directory run:
+   - ```pip install requests``` or ```pip install -r requirements.txt```
+   - ```python3 send_inputs.py ./inputs.txt```
 
 
 ### Input file
