@@ -5,7 +5,7 @@ const app = express();
 app.use(express.json());
 const http = require("http");
 const server = http.createServer(app);
-const redisClient = require('redis')
+const redisClient = require("redis");
 
 const usersDb = db.collection("users");
 let redis = null;
@@ -24,31 +24,24 @@ const connectToRedis = async () => {
 
 connectToRedis();
 
-
 server.listen(5000, () => {
   console.log("Server is live on port 5000");
 });
 
 const getTimestamp = () => {
-  const now = new Date()
-  return now.toISOString()
+  const now = new Date();
+  return now.toISOString();
 };
 
-app.put("/comments/new_comment", async (req, res) => {
+app.post("/comments/new_comment", async (req, res) => {
   // comment on a post
-  const {
-    postAuthor,
-    postId,
-    commentAuthor,
-    commentAuthorPassword,
-    commentId,
-    commentContent,
-  } = req.body;
+  const { postAuthor, postId, commentAuthor, commentId, commentContent } =
+    req.body;
   const commenterExists = await usersDb.findOne({ username: commentAuthor });
-  if (commenterExists && commenterExists.password === commentAuthorPassword) {
+  if (commenterExists) {
     // send notification via redis
-    const message = `${commentAuthor} commented '${commentContent}' on your post! - ${getTimestamp()}`
-    await redis.rpush(`notifications.${postAuthor}`, message)
+    const message = `${commentAuthor} commented '${commentContent}' on your post! - ${getTimestamp()}`;
+    await redis.rpush(`notifications.${postAuthor}`, message);
 
     await usersDb.updateOne(
       { username: commentAuthor },
@@ -92,7 +85,6 @@ app.put("/comments/new_comment", async (req, res) => {
 
 app.put("/comments/edit_comment", async (req, res) => {
   const { postAuthor, postId, commentId, newContent } = req.body;
-
   const edited = await usersDb.updateOne(
     {
       username: postAuthor,
@@ -125,17 +117,11 @@ app.put("/comments/edit_comment", async (req, res) => {
   }
 });
 
-app.put("/comments/delete_comment", async (req, res) => {
-  const {
-    postAuthor,
-    postId,
-    commentId,
-    commentAuthor,
-    commentAuthorPassword,
-  } = req.body;
+app.delete("/comments/delete_comment", async (req, res) => {
+  const { postAuthor, postId, commentId, commentAuthor } = req.body;
 
   const commenterExists = await usersDb.findOne({ username: commentAuthor });
-  if (commenterExists && commenterExists.password === commentAuthorPassword) {
+  if (commenterExists) {
     await usersDb.updateOne(
       { username: commentAuthor },
       { $inc: { totalComments: -1 } }
@@ -179,17 +165,11 @@ app.put("/comments/delete_comment", async (req, res) => {
 
 app.put("/comments/like_comment", async (req, res) => {
   // like a comment
-  const {
-    postAuthor,
-    postId,
-    commentId,
-    commentAuthor,
-    likerUsername,
-    likerPassword,
-  } = req.body;
+  const { postAuthor, postId, commentId, commentAuthor, likerUsername } =
+    req.body;
 
   const likerExists = await usersDb.findOne({ username: likerUsername });
-  if (likerExists && likerExists.password === likerPassword) {
+  if (likerExists) {
     await usersDb.updateOne(
       { username: likerUsername },
       { $inc: { likesGiven: 1 } }

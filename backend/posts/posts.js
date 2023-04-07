@@ -5,7 +5,7 @@ const app = express();
 app.use(express.json());
 const http = require("http");
 const server = http.createServer(app);
-const redisClient = require('redis')
+const redisClient = require("redis");
 // redis init
 let redis = null;
 const connectToRedis = async () => {
@@ -25,16 +25,14 @@ connectToRedis();
 
 const usersDb = db.collection("users");
 
-server.listen(5000, async() => {
+server.listen(5000, async () => {
   console.log("Server is live on port 5000");
 });
-
 
 const getTimestamp = () => {
   const now = new Date();
   return now.toISOString();
 };
-
 
 app.get("/posts/posts", async (req, res) => {
   // gets all posts and returns them sorted by date
@@ -47,7 +45,7 @@ app.get("/posts/posts", async (req, res) => {
       return;
     }
     if (posts.length > 0) {
-      console.log("IN REDIS", posts);
+      console.log("IN REDIS");
       const parsedPosts = posts.map((post) => JSON.parse(post));
       res.status(200).json({ posts: parsedPosts });
       return;
@@ -58,8 +56,8 @@ app.get("/posts/posts", async (req, res) => {
         .toArray();
       const allPostsFiltered = [];
       for (let i = 0; i < allPosts.length; i++) {
-        console.log(allPosts[i].posts.length);
         for (let j = 0; j < allPosts[i].posts.length; j++) {
+          console.log(allPosts[i].posts[j]);
           const post = allPosts[i].posts[j];
           post.author = allPosts[i].username;
           allPostsFiltered.push(post);
@@ -73,7 +71,6 @@ app.get("/posts/posts", async (req, res) => {
         });
 
         allPostsFilteredSorted.forEach(async (post) => {
-          console.log(post);
           await redis.rpush("posts", JSON.stringify(post));
         });
         await redis.expire("posts", 60);
@@ -106,9 +103,9 @@ app.post("/posts/new_post", async (req, res) => {
 });
 
 app.put("/posts/edit_post", async (req, res) => {
-  const { username, password, postId, newContent } = req.body;
+  const { username, postId, newContent } = req.body;
   const userExists = await usersDb.findOne({ username: username });
-  if (userExists && userExists.password === password) {
+  if (userExists) {
     const edited = await usersDb.updateOne(
       { username: username, posts: { $elemMatch: { postId: postId } } },
       {
@@ -132,10 +129,9 @@ app.put("/posts/edit_post", async (req, res) => {
 });
 
 app.delete("/posts/delete_post", async (req, res) => {
-  const { username, password, postId } = req.body;
-
+  const { username, postId } = req.body;
   const userExists = await usersDb.findOne({ username: username });
-  if (userExists && userExists.password === password) {
+  if (userExists) {
     // compare passwords
     const deleted = await usersDb.updateOne(
       { username: username },
@@ -163,13 +159,13 @@ app.delete("/posts/delete_post", async (req, res) => {
 
 app.put("/posts/like_post", async (req, res) => {
   // like a post
-  const { author, postId, likerUsername, likerPassword } = req.body;
+  const { author, postId, likerUsername } = req.body;
 
   const likerExists = await usersDb.findOne({ username: likerUsername });
-  if (likerExists && likerExists.password === likerPassword) {
+  if (likerExists) {
     // send notification via redis!
-    const message = `${likerUsername} liked your post! - ${getTimestamp()}`
-    await redis.rpush(`notifications.${author}`, message)
+    const message = `${likerUsername} liked your post! - ${getTimestamp()}`;
+    await redis.rpush(`notifications.${author}`, message);
 
     await usersDb.updateOne(
       { username: likerUsername },

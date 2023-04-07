@@ -17,6 +17,9 @@ services:
       context: ./backend/users
     ports:
       - "5000"
+    depends_on:
+      - "redis"
+      - "database"
 
   posts:
     build:
@@ -25,18 +28,25 @@ services:
       - "5000"
     depends_on:
       - "redis"
+      - "database"
 
   comments:
     build:
       context: ./backend/comments
     ports:
       - "5000"
+    depends_on:
+      - "redis"
+      - "database"
 
   messaging:
     build:
       context: ./backend/messaging
     ports:
       - "5000"
+    depends_on:
+      - "redis"
+      - "database"
 
   nginx:
     image: nginx:latest
